@@ -1,0 +1,67 @@
+# DeepSeek Harness (DSH) Tool Mapping
+
+Skills speak in actions ("dispatch a subagent", "create a todo", "read a file"). On DeepSeek Harness these resolve to the tools below.
+
+| Action skills request | DSH equivalent |
+| --- | --- |
+| Invoke a skill | `skill` with the exact kebab-case name |
+| Read files | `read` |
+| Create or overwrite files | `write` |
+| Targeted file edits | `edit` |
+| Search file contents | `grep` |
+| Find files by name or pattern | `glob` |
+| Run a shell command | `bash` |
+| Run a long-lived server or process | `bash` with `run_in_background: true`, then `job_output`; stop it with `job_kill` |
+| Dispatch a subagent (`Subagent (general-purpose):` template) | `subagent` with a self-contained `prompt` |
+| Continue a delegated child | `send_message` with its `agent_id` |
+| Inspect delegated children | `list_agents` |
+| Stop a delegated child | `interrupt_agent` |
+| Create or update todos | `todo_write` with the complete list |
+| Fetch a URL | `web_fetch` |
+| Search the web | `web_search` |
+| Ask the human a question | `ask_user_question` |
+| Deliver a file | `present` |
+
+## Subagents
+
+DSH's `subagent` starts an independently managed child and returns its id immediately; the runtime notifies the parent when it finishes. The child reports with `send_message`; the parent continues it with `send_message` and inspects it with `list_agents`. Use `subagent_fork` only when the child should inherit the current conversation; a fresh isolated child is the default for implementers, reviewers, and analysts. Never invent a `Task` or `wait_agent` call: use `subagent`, `send_message`, and `list_agents`.
+
+When a child is running and the parent still has local work, keep working instead of waiting. When the parent is genuinely idle with children outstanding, inspect `list_agents` and continue children with `send_message` as needed.
+
+## Task lists
+
+`todo_write` replaces the complete list on every call. Send every item, not just the changed one.
+
+## Background processes
+
+Use the `bash` tool with `run_in_background: true` for servers and long-lived processes. Read output with `job_output`, list jobs with `job_list`, and stop one with `job_kill`. Do not leave detached processes running after the work is done.
+
+## Browser and visual companion
+
+DSH exposes Chrome DevTools tools when the deployment mounts them, but the visual companion's own server is independent: start it with `bash scripts/start-server.sh ... --foreground` through `bash` (`run_in_background: true`), read `$STATE_DIR/server-info` for the URL, and open that URL in the user's browser. Keep the session key in the URL.
+
+## Session history and diagnosis
+
+DSH provides `session_search`, `session_trace`, `session_event_search`, and `session_event_read` for live and persisted sessions. On disk, a session lives at:
+
+```text
+$DSH_HOME/sessions/<encoded-workspace>/<session-id>/session.v4.jsonl.zstd
+```
+
+Read it without modifying it:
+
+```bash
+zstd -dc <file> | nl -ba
+```
+
+Each line is one JSON event. The session header carries the session id, workspace, timestamps, and `parentSession`; subagent sessions are separate directories and can be located through `session_trace`. Compaction is recorded by `compaction/start` and `compaction/end`; a compacted checkpoint is a user message whose `source.kind` is `compact-checkpoint`.
+
+For `diagnosing-superpowers`, write case and report artifacts under `.superpowers/diagnosing-superpowers/<session-id>/` in the current workspace, not under `~/.superpowers`. Keep the session files read-only.
+
+## Diagnostics artifacts and workspace policy
+
+DSH's default file policy is workspace-write. Prefer workspace-local paths for artifacts that are not part of the product. Add `.superpowers/` to `.gitignore` when a skill creates it. Do not write outside the workspace without explicit human approval.
+
+## Graphviz
+
+`writing-skills` can render `dot` diagrams with `node ./render-graphs.js`. This is optional; if `dot` is not installed, skip the rendering and report that Graphviz is unavailable.
