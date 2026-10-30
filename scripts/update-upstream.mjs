@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,17 +24,23 @@ for (let index = 0; index < args.length; index += 1) {
 }
 
 function tags(remote) {
-  const output = execFileSync('git', gitArgs(['ls-remote', '--tags', '--refs', remote]), {
+  const output = execFileSync('git', gitArgs(['ls-remote', '--tags', remote]), {
     encoding: 'utf8',
     timeout: 120000,
   });
-  return output
-    .split('\n')
-    .map((line) => line.split('\t')[1])
-    .filter((ref) => typeof ref === 'string' && ref.startsWith('refs/tags/'))
-    .map((ref) => ref.slice('refs/tags/'.length))
-    .map((tag) => ({ tag, version: tag.replace(/^v/u, '') }))
-    .filter(({ version }) => /^\d+\.\d+\.\d+$/u.test(version));
+  const byTag = new Map();
+  for (const line of output.split('\n')) {
+    const [commit, ref] = line.split('\t');
+    if (typeof ref !== 'string' || !ref.startsWith('refs/tags/')) continue;
+    const peeled = ref.endsWith('^{}');
+    const tag = ref.slice('refs/tags/'.length).replace(/\^\{\}$/u, '');
+    const version = tag.replace(/^v/u, '');
+    if (!/^\d+\.\d+\.\d+$/u.test(version)) continue;
+    const entry = byTag.get(tag) ?? { tag, version };
+    if (peeled || entry.commit === undefined) entry.commit = commit;
+    byTag.set(tag, entry);
+  }
+  return [...byTag.values()];
 }
 
 function compare(left, right) {
@@ -63,15 +69,19 @@ try {
     stdio: 'inherit',
     timeout: 120000,
   });
-  execFileSync(process.execPath, ['scripts/sync-upstream.mjs', '--from', checkout, '--version', latest.version], {
+  execFileSync(process.execPath, ['scripts/sync-upstream.mjs', '--from', checkout, '--version', latest.version, '--commit', latest.commit], {
     cwd: ROOT,
     stdio: 'inherit',
   });
-  execFileSync(process.execPath, ['--test', 'test/skills.test.mjs', 'test/upstream.test.mjs'], {
+  const testFiles = readdirSync(join(ROOT, 'test'))
+    .filter((file) => file.endsWith('.test.mjs'))
+    .sort()
+    .map((file) => join('test', file));
+  execFileSync(process.execPath, ['--test', ...testFiles], {
     cwd: ROOT,
     stdio: 'inherit',
   });
-  console.log(`updated to ${latest}; restart the profile to load the new skills`);
+  console.log(`updated to ${latest.version}; restart the profile to load the new skills`);
 } finally {
   if (existsSync(checkout)) rmSync(checkout, { recursive: true, force: true });
 }

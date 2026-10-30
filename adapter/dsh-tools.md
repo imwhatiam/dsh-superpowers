@@ -65,3 +65,7 @@ DSH's default file policy is workspace-write. Prefer workspace-local paths for a
 ## Graphviz
 
 `writing-skills` can render `dot` diagrams with `node ./render-graphs.js`. This is optional; if `dot` is not installed, skip the rendering and report that Graphviz is unavailable.
+
+## Tool availability
+
+Use only the tools actually visible to the current agent. If the current DSH profile or agent lacks a mapped tool (for example Web Search, Subagent, or Graphviz), do not call it; use an available alternative or tell the human what capability is unavailable. The mapping names the intended DSH tool, not a guarantee that every profile mounts it.

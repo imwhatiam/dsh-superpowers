@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync,
+} from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { join, relative, resolve, dirname } from 'node:path';
@@ -7,23 +9,24 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SKILLS_DIR = join(ROOT, 'skills');
-const MAPPING_SOURCE = join(ROOT, 'patches', 'using-superpowers', 'references', 'dsh-tools.md');
 const MANIFEST = join(ROOT, 'UPSTREAM.json');
 const UPSTREAM_URL = 'https://github.com/obra/superpowers';
 const GIT_PROXY = process.env.DSH_GIT_PROXY || process.env.HTTPS_PROXY || process.env.ALL_PROXY || '';
 const gitArgs = (args) => (GIT_PROXY === '' ? args : ['-c', `http.proxy=${GIT_PROXY}`, ...args]);
 
 const args = process.argv.slice(2);
-const options = { check: false, from: null, version: '7.0.1' };
+const options = { check: false, from: null, version: '7.0.1', commit: null };
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
   if (arg === '--check') options.check = true;
   else if (arg === '--from') options.from = args[++index];
   else if (arg === '--version') options.version = args[++index];
+  else if (arg === '--commit') options.commit = args[++index];
   else if (arg === '--help' || arg === '-h') {
-    console.log('usage: node scripts/sync-upstream.mjs [--check] [--from <superpowers-checkout>] [--version <tag>]');
+    console.log('usage: node scripts/sync-upstream.mjs [--check] [--from <superpowers-checkout>] [--version <tag>] [--commit <sha>]');
     console.log('  --from      local checkout or remote URL');
     console.log('  --version   explicit tag/version');
+    console.log('  --commit    full upstream commit for the manifest');
     process.exit(0);
   } else {
     throw new Error(`unknown argument: ${arg}`);
@@ -57,62 +60,28 @@ function treeHash(skillsDirectory) {
   };
 }
 
-function read(file) {
-  return readFileSync(file, 'utf8');
-}
-
-function write(file, content) {
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, content);
-}
-
-function replaceAll(file, from, to) {
-  const before = read(file);
-  const after = before.split(from).join(to);
-  if (!before.includes(from)) throw new Error(`path patch target not found in ${file}`);
-  write(file, after);
-}
-
-function addDshPlatformPointer(file) {
-  const before = read(file);
-  const marker = '- Muse: `references/muse-tools.md`';
-  const pointer = '- DeepSeek Harness: `references/dsh-tools.md`';
-  if (before.includes(pointer)) return;
-  if (!before.includes(marker)) throw new Error(`platform pointer target not found in ${file}`);
-  write(file, before.replace(marker, `${marker}\n${pointer}`));
-}
-
-function applyDshPatches() {
-  addDshPlatformPointer(join(SKILLS_DIR, 'using-superpowers', 'SKILL.md'));
-  for (const file of [
-    join(SKILLS_DIR, 'diagnosing-superpowers', 'SKILL.md'),
-    join(SKILLS_DIR, 'diagnosing-superpowers', 'templates', 'case.md'),
-    join(SKILLS_DIR, 'diagnosing-superpowers', 'templates', 'report.md'),
-  ]) {
-    replaceAll(file, '~/.superpowers', '.superpowers');
+function assertRaw(directory) {
+  if (existsSync(join(directory, 'using-superpowers', 'references', 'dsh-tools.md'))) {
+    throw new Error('skills/ contains adapter/dsh-tools.md; upstream skills must remain untouched');
   }
-  cpSync(MAPPING_SOURCE, join(SKILLS_DIR, 'using-superpowers', 'references', 'dsh-tools.md'));
+  const using = readFileSync(join(directory, 'using-superpowers', 'SKILL.md'), 'utf8');
+  if (using.includes('- DeepSeek Harness: `references/dsh-tools.md`')) {
+    throw new Error('skills/using-superpowers/SKILL.md contains a DSH-specific pointer');
+  }
 }
 
-function assertPatched() {
-  const using = read(join(SKILLS_DIR, 'using-superpowers', 'SKILL.md'));
-  if (!using.includes('- DeepSeek Harness: `references/dsh-tools.md`')) throw new Error('DSH platform pointer is missing');
-  for (const file of [
-    join(SKILLS_DIR, 'diagnosing-superpowers', 'SKILL.md'),
-    join(SKILLS_DIR, 'diagnosing-superpowers', 'templates', 'case.md'),
-    join(SKILLS_DIR, 'diagnosing-superpowers', 'templates', 'report.md'),
-  ]) {
-    if (read(file).includes('~/.superpowers')) throw new Error(`home path remains in ${file}`);
+function sourceCommit(source) {
+  if (options.commit) return options.commit;
+  if (existsSync(join(source, '.git'))) {
+    return execFileSync('git', gitArgs(['-C', source, 'rev-parse', 'HEAD']), { encoding: 'utf8' }).trim();
   }
-  if (!existsSync(join(SKILLS_DIR, 'using-superpowers', 'references', 'dsh-tools.md'))) {
-    throw new Error('dsh-tools.md is missing');
-  }
+  throw new Error('sync from a non-git source requires --commit <40-hex upstream commit>');
 }
 
 if (options.check) {
-  assertPatched();
+  assertRaw(SKILLS_DIR);
   if (!existsSync(MANIFEST)) throw new Error('UPSTREAM.json does not exist');
-  const expected = JSON.parse(read(MANIFEST));
+  const expected = JSON.parse(readFileSync(MANIFEST, 'utf8'));
   const actual = treeHash(SKILLS_DIR);
   if (expected.treeHash !== actual.treeHash) {
     throw new Error(`skills tree does not match UPSTREAM.json (expected ${expected.treeHash}, got ${actual.treeHash})`);
@@ -126,52 +95,81 @@ if (!options.from) {
   console.log('Fetching latest tag from upstream...');
   try {
     const tags = execFileSync('git', gitArgs(['ls-remote', '--tags', UPSTREAM_URL]), { encoding: 'utf8' });
-    const matches = [...tags.matchAll(/^([a-f0-9]+)\s+refs\/tags\/v(\d+\.\d+\.\d+)/gm)];
-    if (matches.length === 0) throw new Error('No tags found');
-    // Sort by version number (simple string comparison for semver)
-    const sorted = matches.sort((a, b) => a[2].localeCompare(b[2])).pop();
-    options.version = sorted[2];
-    const commit = sorted[1];
-    console.log(`Found latest tag: v${options.version} (${commit.substring(0, 7)})`);
+    const byTag = new Map();
+    for (const line of tags.split('\n')) {
+      const [commit, ref] = line.split('\t');
+      if (typeof ref !== 'string' || !ref.startsWith('refs/tags/')) continue;
+      const peeled = ref.endsWith('^{}');
+      const tag = ref.slice('refs/tags/'.length).replace(/\^\{\}$/u, '');
+      const version = tag.replace(/^v/u, '');
+      if (!/^\d+\.\d+\.\d+$/u.test(version)) continue;
+      const entry = byTag.get(tag) ?? { tag, version };
+      if (peeled || entry.commit === undefined) entry.commit = commit;
+      byTag.set(tag, entry);
+    }
+    const sorted = [...byTag.values()].sort((a, b) => a.version.localeCompare(b.version)).pop();
+    if (sorted === undefined) throw new Error('No tags found');
+    options.version = sorted.version;
+    options.commit = sorted.commit;
+    const latestTag = sorted.tag;
+    console.log(`Found latest tag: ${latestTag} (${options.commit.substring(0, 7)})`);
 
-    // Create temp directory for clone
     tempDir = join(ROOT, 'tests', `sync-temp-${Date.now()}`);
     mkdirSync(tempDir, { recursive: true });
-    execFileSync('git', gitArgs(['clone', '--depth', '1', '--branch', `v${options.version}`, UPSTREAM_URL, tempDir]), { stdio: 'inherit' });
+    execFileSync('git', gitArgs(['clone', '--depth', '1', '--branch', latestTag, UPSTREAM_URL, tempDir]), { stdio: 'inherit' });
     options.from = resolve(tempDir);
   } catch (e) {
     if (tempDir !== null) rmSync(tempDir, { recursive: true, force: true });
     throw new Error(`Failed to fetch from git: ${e.message}`);
   }
 }
+
 const source = resolve(options.from);
 const sourceSkills = join(source, 'skills');
 if (!existsSync(sourceSkills) || !statSync(sourceSkills).isDirectory()) {
   if (tempDir !== null) rmSync(tempDir, { recursive: true, force: true });
   throw new Error(`no skills directory under ${source}`);
 }
+const commit = sourceCommit(source);
 
+const staging = join(ROOT, 'tests', `skills-staging-${Date.now()}`);
+const backup = join(ROOT, 'tests', `skills-backup-${Date.now()}`);
+let oldMoved = false;
 try {
-  rmSync(SKILLS_DIR, { recursive: true, force: true });
-  cpSync(sourceSkills, SKILLS_DIR, { recursive: true });
-  applyDshPatches();
-  assertPatched();
-  if (existsSync(join(source, 'LICENSE'))) cpSync(join(source, 'LICENSE'), join(ROOT, 'LICENSE'));
-
-  const { treeHash: digest, files } = treeHash(SKILLS_DIR);
-  writeFileSync(MANIFEST, `${JSON.stringify({
+  cpSync(sourceSkills, staging, { recursive: true });
+  assertRaw(staging);
+  const { treeHash: digest, files } = treeHash(staging);
+  const manifest = {
     upstream: UPSTREAM_URL,
     version: options.version,
     source: {
-      type: "git",
+      type: 'git',
       url: UPSTREAM_URL,
-      tag: `v${options.version}`
+      tag: `v${options.version}`,
+      commit,
     },
     syncedAt: new Date().toISOString(),
     treeHash: digest,
     files,
-  }, null, 2)}\n`);
+  };
+
+  if (existsSync(SKILLS_DIR)) {
+    renameSync(SKILLS_DIR, backup);
+    oldMoved = true;
+  }
+  try {
+    renameSync(staging, SKILLS_DIR);
+    writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
+  } catch (error) {
+    rmSync(SKILLS_DIR, { recursive: true, force: true });
+    if (oldMoved) renameSync(backup, SKILLS_DIR);
+    throw error;
+  }
+  if (oldMoved) rmSync(backup, { recursive: true, force: true });
+  if (existsSync(join(source, 'LICENSE'))) cpSync(join(source, 'LICENSE'), join(ROOT, 'LICENSE'));
   console.log(`synced ${options.version} ${digest}`);
 } finally {
+  if (existsSync(staging)) rmSync(staging, { recursive: true, force: true });
+  if (oldMoved && existsSync(backup)) rmSync(backup, { recursive: true, force: true });
   if (tempDir !== null) rmSync(tempDir, { recursive: true, force: true });
 }

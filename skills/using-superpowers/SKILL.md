@@ -59,7 +59,6 @@ If your harness appears here, read its reference file for special instructions:
 - Antigravity: `references/antigravity-tools.md`
 - Hermes Agent: `references/hermes-tools.md`
 - Muse: `references/muse-tools.md`
-- DeepSeek Harness: `references/dsh-tools.md`
 
 ## User Instructions
 

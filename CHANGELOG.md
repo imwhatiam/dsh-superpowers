@@ -10,6 +10,11 @@ All notable changes to this project will be documented in this file.
 - Updated package metadata for the rc.5 peer/dev dependency ranges and bundle manifest.
 - Aligned skill provider candidate/resource-base handling with the rc.5 skill provider pattern.
 - Added the version-sync policy to the README: future DSH validation bumps the plugin version to the validated DSH base version.
+- Separated the raw upstream `skills/` tree from the DSH `adapter/`; the four DSH text patches now live in the adapter/bootstrap layer.
+- Added a raw upstream manifest keyed by the full v7.0.1 commit and SHA-256 file hashes.
+- Switched Frontmatter parsing to YAML and added `metadata`/multi-line support.
+- Made upstream sync stage and validate before replacing `skills/`; update now runs the full test suite.
+- Added the weekly `upstream-sync` GitHub Actions workflow, which opens a PR and does not publish npm automatically.
 
 ## [0.1.0] - 2026-10-30
 

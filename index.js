@@ -21,7 +21,8 @@ const catalog = loadCatalog(SKILLS_DIR).map((skill) => ({
 }));
 const bootstrap = buildBootstrap(
   readFileSync(join(SKILLS_DIR, 'using-superpowers', 'SKILL.md'), 'utf8'),
-  readFileSync(join(SKILLS_DIR, 'using-superpowers', 'references', 'dsh-tools.md'), 'utf8'),
+  readFileSync(join(ROOT, 'adapter', 'dsh-tools.md'), 'utf8'),
+  readFileSync(join(ROOT, 'adapter', 'path-policy.md'), 'utf8'),
 );
 
 function toSummary(skill) {

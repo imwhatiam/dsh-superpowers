@@ -1,12 +1,12 @@
 # dsh-superpowers
 
-Superpowers 7.0.1 for DeepSeek Harness. This package vendors the upstream `skills/` tree and adds one DSH adapter:
+Superpowers 7.0.1 for DeepSeek Harness. This package keeps the upstream `skills/` tree byte-for-byte raw and adds a separate DSH adapter layer:
 
 - Registers all 15 skills through `ctx.skills.registerProvider`;
 - Injects the `using-superpowers` bootstrap once per top-level session through `agent/pre-step`;
 - Skips delegated child sessions;
 - Re-injects after compaction;
-- Maps Superpowers actions to DSH tools in `skills/using-superpowers/references/dsh-tools.md`.
+- Maps Superpowers actions to DSH tools in `adapter/dsh-tools.md`.
 
 ## Versioning
 
@@ -43,6 +43,7 @@ This package pins Superpowers v7.0.1 with deterministic hash verification. To ch
 ```bash
 npm run update:check   # compare UPSTREAM.json with latest semver tag from obra/superpowers
 npm run update         # clones tag, runs sync-upstream.mjs, re-runs tests
+npm run verify:upstream -- --from /path/to/superpowers
 npm test               # ensures compatibility
 ```
 
@@ -58,32 +59,18 @@ After a successful update:
 4. Update npm: `npm publish --access public`
 5. Restart the DSH profile to reload the linked package
 
-For automated weekly checks in CI/CD:
-
-```yaml
-# .github/workflows/update-check.yml
-on:
-  schedule:
-    - cron: '0 9 * * 1'  # Mon-Fri at 9am UTC
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: npm test && npm run update:check || true
-```
+The repository includes `.github/workflows/upstream-sync.yml`: it runs weekly, checks for a new stable tag, runs the full test suite, and opens a PR. It never publishes npm automatically.
 
 ## Files structure
 
-- `skills/` — All 15 Superpowers skills (byte-for-byte identical except patches)
-- `lib/` — Pure DSH injection logic (`inject.js`, `skills.js`)
-- `scripts/sync-upstream.mjs` — Local vendor script (not published)
+- `skills/` — 15 Superpowers skills, byte-for-byte identical to upstream v7.0.1
+- `adapter/` — DSH-only tool mapping, path policy, and bootstrap composition
+- `lib/` — DSH skill provider and bootstrap re-export
+- `scripts/sync-upstream.mjs` — Raw upstream vendor script (not published)
 - `scripts/update-upstream.mjs` — Automated update checker (not published)
-- `tests/` — Static unit tests (not published)
-- `UPSTREAM.json` — Hash-verified manifest of vendored content
+- `scripts/verify-upstream.mjs` — Independent raw-tree parity checker (not published)
+- `test/` — Unit and parity tests (not published)
+- `UPSTREAM.json` — Raw upstream commit and file-hash manifest
 - `cordis.patch.yml` — Bundle manifest (published)
 - `LICENSE` — MIT license
 - `THIRD_PARTY_NOTICES.md` — Attribution to Superpowers (obra)
@@ -92,24 +79,23 @@ jobs:
 
 Current status (as of v0.2.1):
 
-- ✅ **Test suite**: 7/7 tests passing
+- ✅ **Test suite**: 9/9 tests passing
 - ⚠️ **Crapper**: Known red (complexity issues in `parseBoolean`, `apply`)
 - ⚠️ **Dryer**: Unsupported for JavaScript-only packages (Docker alternative available)
 - ⚠️ **Mutator**: Needs more comprehensive test coverage for mutation testing
 
-Recommendation: Publish as **preview** until quality gates are green. Fix root causes incrementally:
-
-1. Refactor `parseBoolean` into `lib/skills.js` (reduce complexity)
-2. Add unit tests for `index.js` functions
-3. Use mutation testing on pure functions
+Recommendation: Publish as **preview** until quality gates are green.
 
 ## DSH specifics
 
-- **Bootstrap source**: User-role message, injected once per session, survives replay
-- **Workspace path**: `.superpowers/` is workspace-local (add to `.gitignore`)
-- **Graphviz**: Optional for `writing-skills` rendering (`dot` binary required)
-- **Session storage**: Uses `$DSH_HOME/sessions/<workspace>/<id>/session.v4.jsonl.zstd`
-- **Subagents**: Bootstrap skipped in delegated children (confirmed via session logs)
+- **Raw upstream**: `skills/` contains the unmodified Superpowers v7.0.1 files; DSH-only material is in `adapter/`.
+- **Tool mapping**: `adapter/dsh-tools.md`; use only tools visible to the current agent and degrade when unavailable.
+- **Path policy**: `adapter/path-policy.md` maps upstream `~/.superpowers` references to workspace `.superpowers/`.
+- **Bootstrap source**: User-role message, injected once per session, survives replay.
+- **Workspace path**: `.superpowers/` is workspace-local (add to `.gitignore`).
+- **Graphviz**: Optional for `writing-skills` rendering (`dot` binary required).
+- **Session storage**: Uses `$DSH_HOME/sessions/<workspace>/<id>/session.v4.jsonl.zstd`.
+- **Subagents**: Bootstrap skipped in delegated children (confirmed via session logs).
 
 ## Contributing
 

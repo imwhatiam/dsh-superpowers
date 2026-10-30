@@ -6,13 +6,15 @@ This product includes software from the following sources:
 
 - **Author**: Jesse Vincent (obra)
 - **Repository**: https://github.com/obra/superpowers
+- **Version / commit**: v7.0.1 / 2ce8aa15d05bd57213e6f746f953aafb7ded7a8b
 - **License**: MIT License
-- **Usage**: This project vendors Superpowers skills as a DeepSeek Harness plugin with minor modifications for DSH platform compatibility.
+- **Usage**: The `skills/` directory is a byte-for-byte copy of the upstream Superpowers v7.0.1 skills tree.
 
 The full text of the MIT License is included in the LICENSE file at the root of this repository.
 
-All Superpowers skill content is used under the original MIT license. Modifications made for DSH include:
-- Adding `dsh-tools.md` reference to using-superpowers/SKILL.md
-- Replacing `~/.superpowers` paths with `.superpowers/` in diagnosing-superpowers templates
-- Creating per-session bootstrap injection mechanism
-- Maintaining exact byte-for-byte compatibility for all other files
+All Superpowers skill content is used under the original MIT license. DSH-specific behavior is kept outside the upstream tree:
+
+- `adapter/dsh-tools.md` maps Superpowers actions to DSH tools.
+- `adapter/path-policy.md` maps upstream `~/.superpowers` references to workspace `.superpowers/`.
+- `adapter/bootstrap.js` composes the per-session bootstrap.
+- The skill provider and session injection logic live in `index.js` and `lib/`.

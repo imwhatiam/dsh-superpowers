@@ -14,6 +14,7 @@
   "files": [
     "index.js",
     "lib",
+    "adapter",
     "skills",
     "locale/*.json",
     "icon.svg",
@@ -53,6 +54,7 @@
     "sync:check": "node scripts/sync-upstream.mjs --check",
     "update:check": "node scripts/update-upstream.mjs --check",
     "update": "node scripts/update-upstream.mjs",
+    "verify:upstream": "node scripts/verify-upstream.mjs",
     "prepublishOnly": "npm run sync:check && npm test"
   },
   "engines": {
@@ -73,5 +75,8 @@
     "@deepseek-ai/cordis": "^4.0.5",
     "@deepseek-ai/dsh-llm": "^0.2.1-rc.5",
     "@deepseek-ai/dsh-skill": "^0.2.1-rc.5"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
   }
 }
