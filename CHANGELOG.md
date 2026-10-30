@@ -19,7 +19,7 @@ All notable changes to this project will be documented in this file.
 - Added raw-parity verification to the workflow, update path, and publish gate.
 - Made manifest replacement transactional alongside `skills/`; numeric SemVer comparison now covers `7.0.9` vs `7.0.10`.
 - Provider `get()` returns `undefined` for a missing skill file, and catalog discovery skips directories without `SKILL.md`.
-- Added rc.5 tool-contract checks, a rejected-source rollback test, and a future-version compatibility test.
+- Added rc.5 tool-contract checks, rejected-source and manifest-write failure rollback tests, and a future-version compatibility test.
 
 ## [0.1.0] - 2026-10-30
 

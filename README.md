@@ -79,7 +79,7 @@ The repository includes `.github/workflows/upstream-sync.yml`: it runs weekly, c
 
 Current status (as of v0.2.1):
 
-- ✅ **Test suite**: 14/14 tests passing
+- ✅ **Test suite**: 15/15 tests passing
 - ⚠️ **Crapper**: Known red (complexity issues in `parseBoolean`, `apply`)
 - ⚠️ **Dryer**: Unsupported for JavaScript-only packages (Docker alternative available)
 - ⚠️ **Mutator**: Needs more comprehensive test coverage for mutation testing
