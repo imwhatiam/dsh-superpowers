@@ -97,7 +97,7 @@ Current status (as of v0.2.1):
 - ⚠️ **Dryer**: Unsupported for JavaScript-only packages (Docker alternative available)
 - ⚠️ **Mutator**: Needs more comprehensive test coverage for mutation testing
 
-Recommendation: Publish as **preview** (`0.1.x`) until quality gates are green. Fix root causes incrementally:
+Recommendation: Publish as **preview** until quality gates are green. Fix root causes incrementally:
 
 1. Refactor `parseBoolean` into `lib/skills.js` (reduce complexity)
 2. Add unit tests for `index.js` functions
