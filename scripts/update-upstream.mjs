@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { compareVersions } from './semver.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MANIFEST = join(ROOT, 'UPSTREAM.json');
@@ -43,20 +44,11 @@ function tags(remote) {
   return [...byTag.values()];
 }
 
-function compare(left, right) {
-  const a = left.split('.').map(Number);
-  const b = right.split('.').map(Number);
-  for (let index = 0; index < 3; index += 1) {
-    if (a[index] !== b[index]) return a[index] - b[index];
-  }
-  return 0;
-}
-
 const current = JSON.parse(readFileSync(MANIFEST, 'utf8')).version;
-const available = tags(options.remote).sort((left, right) => compare(left.version, right.version));
+const available = tags(options.remote).sort((left, right) => compareVersions(left.version, right.version));
 const latest = available.at(-1);
 if (latest === undefined) throw new Error('no semver tags found');
-const update = compare(latest.version, current) > 0;
+const update = compareVersions(latest.version, current) > 0;
 console.log(JSON.stringify({ current, latest: latest.version, updateAvailable: update }, null, 2));
 
 if (options.check) process.exit(update ? 2 : 0);
@@ -70,6 +62,10 @@ try {
     timeout: 120000,
   });
   execFileSync(process.execPath, ['scripts/sync-upstream.mjs', '--from', checkout, '--version', latest.version, '--commit', latest.commit], {
+    cwd: ROOT,
+    stdio: 'inherit',
+  });
+  execFileSync(process.execPath, ['scripts/verify-upstream.mjs', '--from', checkout], {
     cwd: ROOT,
     stdio: 'inherit',
   });

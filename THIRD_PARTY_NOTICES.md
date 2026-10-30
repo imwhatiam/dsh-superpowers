@@ -2,13 +2,13 @@
 
 This product includes software from the following sources:
 
-## Superpowers v7.0.1
+## Superpowers
 
 - **Author**: Jesse Vincent (obra)
 - **Repository**: https://github.com/obra/superpowers
-- **Version / commit**: v7.0.1 / 2ce8aa15d05bd57213e6f746f953aafb7ded7a8b
+- **Version / commit**: recorded in `UPSTREAM.json`
 - **License**: MIT License
-- **Usage**: The `skills/` directory is a byte-for-byte copy of the upstream Superpowers v7.0.1 skills tree.
+- **Usage**: The `skills/` directory is a byte-for-byte copy of the upstream Superpowers skills tree. The exact version and source commit are maintained in `UPSTREAM.json`.
 
 The full text of the MIT License is included in the LICENSE file at the root of this repository.
 

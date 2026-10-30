@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import {
-  cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync,
+  copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { join, relative, resolve, dirname } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { compareVersions } from './semver.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SKILLS_DIR = join(ROOT, 'skills');
@@ -24,7 +25,7 @@ for (let index = 0; index < args.length; index += 1) {
   else if (arg === '--commit') options.commit = args[++index];
   else if (arg === '--help' || arg === '-h') {
     console.log('usage: node scripts/sync-upstream.mjs [--check] [--from <superpowers-checkout>] [--version <tag>] [--commit <sha>]');
-    console.log('  --from      local checkout or remote URL');
+    console.log('  --from      local checkout containing skills/');
     console.log('  --version   explicit tag/version');
     console.log('  --commit    full upstream commit for the manifest');
     process.exit(0);
@@ -42,21 +43,31 @@ function listFiles(directory) {
   const files = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
+    if (entry.isSymbolicLink()) throw new Error(`refusing symbolic link in skills tree: ${path}`);
     if (entry.isDirectory()) files.push(...listFiles(path));
     else if (entry.isFile()) files.push(path);
   }
   return files;
 }
 
+function fileMode(file) {
+  return statSync(file).mode & 0o111 ? '100755' : '100644';
+}
+
 function treeHash(skillsDirectory) {
-  const files = listFiles(skillsDirectory)
-    .map((file) => [relative(skillsDirectory, file).split('\\').join('/'), sha256(file)])
+  const entries = listFiles(skillsDirectory)
+    .map((file) => [
+      relative(skillsDirectory, file).split('\\').join('/'),
+      sha256(file),
+      fileMode(file),
+    ])
     .sort(([left], [right]) => left.localeCompare(right));
   const digest = createHash('sha256');
-  for (const [path, hash] of files) digest.update(`${path}\0${hash}\n`);
+  for (const [path, hash, mode] of entries) digest.update(`${path}\0${mode}\0${hash}\n`);
   return {
     treeHash: `sha256:${digest.digest('hex')}`,
-    files: Object.fromEntries(files),
+    files: Object.fromEntries(entries.map(([path, hash]) => [path, hash])),
+    fileModes: Object.fromEntries(entries.map(([path, , mode]) => [path, mode])),
   };
 }
 
@@ -107,7 +118,7 @@ if (!options.from) {
       if (peeled || entry.commit === undefined) entry.commit = commit;
       byTag.set(tag, entry);
     }
-    const sorted = [...byTag.values()].sort((a, b) => a.version.localeCompare(b.version)).pop();
+    const sorted = [...byTag.values()].sort((a, b) => compareVersions(a.version, b.version)).pop();
     if (sorted === undefined) throw new Error('No tags found');
     options.version = sorted.version;
     options.commit = sorted.commit;
@@ -132,13 +143,17 @@ if (!existsSync(sourceSkills) || !statSync(sourceSkills).isDirectory()) {
 }
 const commit = sourceCommit(source);
 
+mkdirSync(join(ROOT, 'tests'), { recursive: true });
 const staging = join(ROOT, 'tests', `skills-staging-${Date.now()}`);
 const backup = join(ROOT, 'tests', `skills-backup-${Date.now()}`);
+const manifestTemp = join(ROOT, `UPSTREAM.${process.pid}.${Date.now()}.tmp`);
+const manifestBackup = join(ROOT, `UPSTREAM.${process.pid}.${Date.now()}.bak`);
 let oldMoved = false;
+let oldManifest = false;
 try {
   cpSync(sourceSkills, staging, { recursive: true });
   assertRaw(staging);
-  const { treeHash: digest, files } = treeHash(staging);
+  const { treeHash: digest, files, fileModes } = treeHash(staging);
   const manifest = {
     upstream: UPSTREAM_URL,
     version: options.version,
@@ -151,7 +166,15 @@ try {
     syncedAt: new Date().toISOString(),
     treeHash: digest,
     files,
+    fileModes,
   };
+
+  writeFileSync(manifestTemp, `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+  JSON.parse(readFileSync(manifestTemp, 'utf8'));
+  if (existsSync(MANIFEST)) {
+    copyFileSync(MANIFEST, manifestBackup);
+    oldManifest = true;
+  }
 
   if (existsSync(SKILLS_DIR)) {
     renameSync(SKILLS_DIR, backup);
@@ -159,17 +182,22 @@ try {
   }
   try {
     renameSync(staging, SKILLS_DIR);
-    writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
+    renameSync(manifestTemp, MANIFEST);
   } catch (error) {
     rmSync(SKILLS_DIR, { recursive: true, force: true });
     if (oldMoved) renameSync(backup, SKILLS_DIR);
+    if (oldManifest) copyFileSync(manifestBackup, MANIFEST);
+    else rmSync(MANIFEST, { force: true });
     throw error;
   }
   if (oldMoved) rmSync(backup, { recursive: true, force: true });
+  if (oldManifest) rmSync(manifestBackup, { force: true });
   if (existsSync(join(source, 'LICENSE'))) cpSync(join(source, 'LICENSE'), join(ROOT, 'LICENSE'));
   console.log(`synced ${options.version} ${digest}`);
 } finally {
   if (existsSync(staging)) rmSync(staging, { recursive: true, force: true });
   if (oldMoved && existsSync(backup)) rmSync(backup, { recursive: true, force: true });
+  if (existsSync(manifestTemp)) rmSync(manifestTemp, { force: true });
+  if (existsSync(manifestBackup)) rmSync(manifestBackup, { force: true });
   if (tempDir !== null) rmSync(tempDir, { recursive: true, force: true });
 }

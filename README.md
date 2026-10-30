@@ -1,8 +1,8 @@
 # dsh-superpowers
 
-Superpowers 7.0.1 for DeepSeek Harness. This package keeps the upstream `skills/` tree byte-for-byte raw and adds a separate DSH adapter layer:
+Superpowers skills for DeepSeek Harness. The exact upstream version and commit are recorded in `UPSTREAM.json`. This package keeps the upstream `skills/` tree byte-for-byte raw and adds a separate DSH adapter layer:
 
-- Registers all 15 skills through `ctx.skills.registerProvider`;
+- Registers the upstream skill catalog through `ctx.skills.registerProvider`;
 - Injects the `using-superpowers` bootstrap once per top-level session through `agent/pre-step`;
 - Skips delegated child sessions;
 - Re-injects after compaction;
@@ -38,7 +38,7 @@ Do not edit a profile's `package.json` or `cordis.patch.yml` by hand—use the `
 
 ## Upstream updates
 
-This package pins Superpowers v7.0.1 with deterministic hash verification. To check for updates:
+This package pins the upstream Superpowers release recorded in `UPSTREAM.json` with deterministic hash verification. To check for updates:
 
 ```bash
 npm run update:check   # compare UPSTREAM.json with latest semver tag from obra/superpowers
@@ -59,11 +59,11 @@ After a successful update:
 4. Update npm: `npm publish --access public`
 5. Restart the DSH profile to reload the linked package
 
-The repository includes `.github/workflows/upstream-sync.yml`: it runs weekly, checks for a new stable tag, runs the full test suite, and opens a PR. It never publishes npm automatically.
+The repository includes `.github/workflows/upstream-sync.yml`: it runs weekly, checks for a new stable tag, verifies raw upstream parity, runs the full test suite, and opens a PR. It never publishes npm automatically.
 
 ## Files structure
 
-- `skills/` — 15 Superpowers skills, byte-for-byte identical to upstream v7.0.1
+- `skills/` — upstream Superpowers skills, byte-for-byte identical to the release in `UPSTREAM.json`
 - `adapter/` — DSH-only tool mapping, path policy, and bootstrap composition
 - `lib/` — DSH skill provider and bootstrap re-export
 - `scripts/sync-upstream.mjs` — Raw upstream vendor script (not published)
@@ -79,7 +79,7 @@ The repository includes `.github/workflows/upstream-sync.yml`: it runs weekly, c
 
 Current status (as of v0.2.1):
 
-- ✅ **Test suite**: 9/9 tests passing
+- ✅ **Test suite**: 14/14 tests passing
 - ⚠️ **Crapper**: Known red (complexity issues in `parseBoolean`, `apply`)
 - ⚠️ **Dryer**: Unsupported for JavaScript-only packages (Docker alternative available)
 - ⚠️ **Mutator**: Needs more comprehensive test coverage for mutation testing
@@ -88,7 +88,7 @@ Recommendation: Publish as **preview** until quality gates are green.
 
 ## DSH specifics
 
-- **Raw upstream**: `skills/` contains the unmodified Superpowers v7.0.1 files; DSH-only material is in `adapter/`.
+- **Raw upstream**: `skills/` contains the unmodified upstream Superpowers files; DSH-only material is in `adapter/`.
 - **Tool mapping**: `adapter/dsh-tools.md`; use only tools visible to the current agent and degrade when unavailable.
 - **Path policy**: `adapter/path-policy.md` maps upstream `~/.superpowers` references to workspace `.superpowers/`.
 - **Bootstrap source**: User-role message, injected once per session, survives replay.

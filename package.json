@@ -55,7 +55,7 @@
     "update:check": "node scripts/update-upstream.mjs --check",
     "update": "node scripts/update-upstream.mjs",
     "verify:upstream": "node scripts/verify-upstream.mjs",
-    "prepublishOnly": "npm run sync:check && npm test"
+    "prepublishOnly": "npm run sync:check && npm test && npm run verify:upstream"
   },
   "engines": {
     "node": ">=20",

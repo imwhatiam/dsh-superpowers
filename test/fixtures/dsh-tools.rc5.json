@@ -1,0 +1,25 @@
+{
+  "source": "DeepSeek Harness 0.2.1-rc.5 built-in tool contracts",
+  "tools": {
+    "skill": { "required": ["name"] },
+    "read": { "required": ["file_path"] },
+    "write": { "required": ["file_path", "content"] },
+    "edit": { "required": ["file_path", "old_string", "new_string"] },
+    "grep": { "required": ["pattern"] },
+    "glob": { "required": ["pattern"] },
+    "bash": { "required": ["command"] },
+    "job_output": { "required": ["job_id"] },
+    "job_kill": { "required": ["job_id"] },
+    "job_list": { "required": [] },
+    "subagent": { "required": ["prompt"] },
+    "subagent_fork": { "required": ["prompt"] },
+    "send_message": { "required": ["agent_id", "message"] },
+    "list_agents": { "required": [] },
+    "interrupt_agent": { "required": ["agent_id"] },
+    "todo_write": { "required": ["todos"] },
+    "web_fetch": { "required": ["url"] },
+    "web_search": { "required": ["queries"] },
+    "ask_user_question": { "required": ["questions"] },
+    "present": { "required": ["files"] }
+  }
+}

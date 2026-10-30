@@ -11,10 +11,15 @@ All notable changes to this project will be documented in this file.
 - Aligned skill provider candidate/resource-base handling with the rc.5 skill provider pattern.
 - Added the version-sync policy to the README: future DSH validation bumps the plugin version to the validated DSH base version.
 - Separated the raw upstream `skills/` tree from the DSH `adapter/`; the four DSH text patches now live in the adapter/bootstrap layer.
-- Added a raw upstream manifest keyed by the full v7.0.1 commit and SHA-256 file hashes.
+- Added a raw upstream manifest keyed by the full v7.0.1 commit, SHA-256 content hashes, and `100644`/`100755` file modes.
 - Switched Frontmatter parsing to YAML and added `metadata`/multi-line support.
 - Made upstream sync stage and validate before replacing `skills/`; update now runs the full test suite.
 - Added the weekly `upstream-sync` GitHub Actions workflow, which opens a PR and does not publish npm automatically.
+- Made tests derive skill names and counts from `UPSTREAM.json`, so a future upstream release is not blocked by fixed v7.0.1/84/15 assertions.
+- Added raw-parity verification to the workflow, update path, and publish gate.
+- Made manifest replacement transactional alongside `skills/`; numeric SemVer comparison now covers `7.0.9` vs `7.0.10`.
+- Provider `get()` returns `undefined` for a missing skill file, and catalog discovery skips directories without `SKILL.md`.
+- Added rc.5 tool-contract checks, a rejected-source rollback test, and a future-version compatibility test.
 
 ## [0.1.0] - 2026-10-30
 

@@ -8,26 +8,16 @@ import { buildBootstrap } from '../lib/bootstrap.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const catalog = loadCatalog(join(ROOT, 'skills'));
-
+const manifest = JSON.parse(readFileSync(join(ROOT, 'UPSTREAM.json'), 'utf8'));
 const EXPECTED = [
-  'brainstorming',
-  'diagnosing-superpowers',
-  'dispatching-parallel-agents',
-  'executing-plans',
-  'finishing-a-development-branch',
-  'receiving-code-review',
-  'requesting-code-review',
-  'subagent-driven-development',
-  'systematic-debugging',
-  'test-driven-development',
-  'using-git-worktrees',
-  'using-superpowers',
-  'verification-before-completion',
-  'writing-plans',
-  'writing-skills',
-];
+  ...new Set(
+    Object.keys(manifest.files)
+      .filter((file) => file.endsWith('/SKILL.md'))
+      .map((file) => file.split('/')[0]),
+  ),
+].sort();
 
-test('catalogs exactly the upstream skill names', () => {
+test('catalogs exactly the upstream skill names from the manifest', () => {
   assert.deepEqual(catalog.map((skill) => skill.name), EXPECTED);
 });
 

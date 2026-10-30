@@ -36,7 +36,13 @@ const provider = {
     return catalog;
   },
   async get(candidate, options) {
-    const raw = await readFile(candidate.locator, { encoding: 'utf8', signal: options.signal });
+    let raw;
+    try {
+      raw = await readFile(candidate.locator, { encoding: 'utf8', signal: options.signal });
+    } catch (error) {
+      if (error.code === 'ENOENT') return undefined;
+      throw error;
+    }
     const parsed = parseSkillFile(raw, candidate.name);
     return {
       ...toSummary(candidate),

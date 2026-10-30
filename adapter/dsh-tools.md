@@ -28,6 +28,8 @@ DSH's `subagent` starts an independently managed child and returns its id immedi
 
 When a child is running and the parent still has local work, keep working instead of waiting. When the parent is genuinely idle with children outstanding, inspect `list_agents` and continue children with `send_message` as needed.
 
+When delegating a task that may use Superpowers paths, include the DSH path policy in the child prompt: use `.superpowers/` in the current workspace, not `~/.superpowers`, and do not write outside the workspace without explicit human approval. Do not repeat the full `using-superpowers` body for a child agent; pass only the necessary adapter instruction.
+
 ## Task lists
 
 `todo_write` replaces the complete list on every call. Send every item, not just the changed one.
