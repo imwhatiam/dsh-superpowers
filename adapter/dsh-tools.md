@@ -70,4 +70,6 @@ DSH's default file policy is workspace-write. Prefer workspace-local paths for a
 
 ## Tool availability
 
-Use only the tools actually visible to the current agent. If the current DSH profile or agent lacks a mapped tool (for example Web Search, Subagent, or Graphviz), do not call it; use an available alternative or tell the human what capability is unavailable. The mapping names the intended DSH tool, not a guarantee that every profile mounts it.
+Use only the tools actually visible to the current agent. If the current DSH profile or agent lacks a mapped tool, do not call it; use an available alternative or tell the human what capability is unavailable. The mapping names the intended DSH tool, not a guarantee that every profile mounts it.
+
+Several mapped tools come from separate DSH plugins and are absent from smaller profiles: `job_list`, `job_output`, and `job_kill` need the jobs plugin, `subagent`, `subagent_fork`, `send_message`, `list_agents`, and `interrupt_agent` need the subagent plugins, and `web_fetch` and `web_search` need the web plugin. When one is missing, run the command in the foreground, do the work yourself, or tell the human what the profile does not provide. Do not claim a background job or a delegated child exists when the tool that reports on it is not mounted.

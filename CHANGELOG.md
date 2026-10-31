@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- The bootstrap no longer records a session as injected before the message reaches session history. A first request that fails in `prepareRequest`, or a turn cancelled before the messages were appended, used to lose the bootstrap for the rest of the session without any error; the next step now injects it again.
+- Injection state is derived from `Session.deriveMessages()` only. The removed `WeakSet` and its `session/event` compaction hook could disagree with the history after compaction or abort.
+
+### Changed
+- The bootstrap message source uses `form: 'instructions'`, one of the documented context forms, instead of the undefined `'bootstrap'`.
+- `insertionIndex()` was removed: `agent/pre-step` receives claimed inbox messages, never a compaction checkpoint, so the index was always `0`. The bootstrap stays after the checkpoint because it is appended to the history that the checkpoint already replaced.
+- `adapter/dsh-tools.md` names the tools that come from optional DSH plugins (jobs, subagent, web) so skills do not assume a profile mounts them.
+
+### Added
+- `lib/state.js` loads the catalog and the bootstrap text independently and degrades with a logged warning instead of failing the host when a skill file or an adapter file is unreadable.
+- Bootstrap lifecycle tests: injection for a root agent, no injection for a child agent or an agent without the `skill` tool, no repetition, re-injection after a failed request, and re-injection after compaction.
+- `tests/.gitkeep` so a clean clone has the `tests/` directory three tests need; without it `npm test` failed on a fresh checkout.
+- A `CI` workflow runs tests, the manifest check, and raw upstream parity on every push and pull request.
+
+### Verified
+- Loaded on the shipped `headless` profile of DeepSeek Harness 0.2.1-rc.5 through a `--patch` overlay: the bootstrap was injected once (`form: 'instructions'`), stayed single across three turns, the skill catalog served 21 skills, and a real `skill` call returned the skill body with the packaged `resourceBase`.
+- Replayed a real, manually compacted session log read-only: its original bootstrap sat inside the shadowed range, the reconstructed history matched the host's own shadow list, and the predicate returned "inject" straight after the checkpoint and "do not inject" once the bootstrap was back.
+
 ## [0.2.1] - 2026-10-30
 
 ### Changed
