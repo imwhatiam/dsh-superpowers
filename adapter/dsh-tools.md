@@ -24,7 +24,7 @@ Skills speak in actions ("dispatch a subagent", "create a todo", "read a file").
 
 ## Subagents
 
-DSH's `subagent` starts an independently managed child and returns its id immediately; the runtime notifies the parent when it finishes. The child reports with `send_message`; the parent continues it with `send_message` and inspects it with `list_agents`. Use `subagent_fork` only when the child should inherit the current conversation; a fresh isolated child is the default for implementers, reviewers, and analysts. Never invent a `Task` or `wait_agent` call: use `subagent`, `send_message`, and `list_agents`.
+DSH's `subagent` starts an independently managed child and returns its id immediately; the runtime notifies the parent when it finishes. The child reports with `send_message`; the parent continues it with `send_message` and inspects it with `list_agents`. Use `subagent_fork` only when the child should inherit the current conversation, and only if it is visible: it is a second instance of the same subagent plugin, not a variant of `subagent`, so a composition that mounts one need not mount the other. A fresh isolated child is the default for implementers, reviewers, and analysts. Never invent a `Task` or `wait_agent` call: use `subagent`, `send_message`, and `list_agents`.
 
 When a child is running and the parent still has local work, keep working instead of waiting. When the parent is genuinely idle with children outstanding, inspect `list_agents` and continue children with `send_message` as needed.
 
@@ -44,7 +44,7 @@ DSH exposes Chrome DevTools tools when the deployment mounts them, but the visua
 
 ## Session history and diagnosis
 
-DSH provides `session_search`, `session_trace`, `session_event_search`, and `session_event_read` for live and persisted sessions. On disk, a session lives at:
+Session history tools are optional. They come from `@deepseek-ai/dsh-tool-session-query`, which the `dsh-experimental-session-search` bundle mounts; a profile without that bundle has none of them. When they are visible, they are `session_search`, `session_event_search`, `session_trace`, `session_event_trace`, and `session_event_read`. Do not call them on the assumption that they exist: if they are missing, inspect the persisted log with filesystem and shell tools instead. On disk, a session lives at:
 
 ```text
 $DSH_HOME/sessions/<encoded-workspace>/<session-id>/session.v4.jsonl.zstd
@@ -72,4 +72,4 @@ DSH's default file policy is workspace-write. Prefer workspace-local paths for a
 
 Use only the tools actually visible to the current agent. If the current DSH profile or agent lacks a mapped tool, do not call it; use an available alternative or tell the human what capability is unavailable. The mapping names the intended DSH tool, not a guarantee that every profile mounts it.
 
-Several mapped tools come from separate DSH plugins and are absent from smaller profiles: `job_list`, `job_output`, and `job_kill` need the jobs plugin, `subagent`, `subagent_fork`, `send_message`, `list_agents`, and `interrupt_agent` need the subagent plugins, and `web_fetch` and `web_search` need the web plugin. When one is missing, run the command in the foreground, do the work yourself, or tell the human what the profile does not provide. Do not claim a background job or a delegated child exists when the tool that reports on it is not mounted.
+Several mapped tools come from separate DSH plugins that a profile or agent preset can drop: `job_list`, `job_output`, and `job_kill` need the jobs plugin, `subagent`, `subagent_fork`, `send_message`, `list_agents`, and `interrupt_agent` need the subagent plugins, and `web_fetch` and `web_search` need the web plugin. When one is missing, run the command in the foreground, do the work yourself, or tell the human what the profile does not provide. Do not claim a background job or a delegated child exists when the tool that reports on it is not mounted.
