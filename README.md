@@ -77,14 +77,15 @@ The repository includes `.github/workflows/upstream-sync.yml`: it runs weekly, c
 
 ## Quality gates
 
-Current status (as of v0.2.1):
+Measured on `main` after the rc.5 verification pass:
 
-- ✅ **Test suite**: 15/15 tests passing
-- ⚠️ **Crapper**: Known red (complexity issues in `parseBoolean`, `apply`)
-- ⚠️ **Dryer**: Unsupported for JavaScript-only packages (Docker alternative available)
-- ⚠️ **Mutator**: Needs more comprehensive test coverage for mutation testing
+- ✅ **Test suite**: 41 tests passing (`npm test`). CI runs the suite, `npm run sync:check`, and `npm run verify:upstream` on every push and pull request.
+- ⚠️ **Crapper**: red at repository scope only on code this plugin does not own or has not changed — the vendored upstream `skills/brainstorming/scripts/server.cjs`, and the pre-existing `parseSkillFile` / `parseBoolean` parsers in `lib/skills.js`. Every function this plugin added stays under CRAP 10; the worst is `apply` at complexity 6 with 98.7% line coverage.
+- ✅ **Dryer**: no duplicate candidates at the 0.8 threshold.
+- ⚠️ **Mutator**: its coverage collection does not see this ESM layout, so it reports every site as uncovered and runs no mutation. Eight targeted mutations of the injection and loading rules were applied by hand instead; all were killed.
+- ⚠️ **`npm pack` and `npx c8`** need a writable npm cache. On a host whose `~/.npm` is root-owned, the Crapper coverage step and the tarball dry run fail before anything runs.
 
-Recommendation: Publish as **preview** until quality gates are green.
+Nothing here publishes to npm; the plugin is installed from a local path or a GitHub tag.
 
 ## DSH specifics
 
